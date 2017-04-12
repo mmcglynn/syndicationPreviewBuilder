@@ -1,0 +1,318 @@
+<!doctype html>
+
+<head>
+	<meta charset="utf-8">
+
+	<title>WP Rest API</title>
+
+	<link rel="dns-prefetch" href="http://technicalwhining.com/">
+	<link href="style.css" rel="stylesheet" type="text/css" />
+
+</head>
+<body>
+
+    <h1>WP Rest API</h1>
+    
+    <div id="container">
+
+        <section>
+
+            <h2>Configure Options</h2>
+
+            <div id="config_panel">
+                <form class="configure-request">
+                    <div class="row">
+                        <label>Categories</label>
+                        <div id="category_list"></div>
+                    </div>
+                    <div class="row">
+                        <label>Tags</label>
+                        <div id="tag_list"></div>
+                    </div>
+                    <div class="row">
+                        <label for="display-type">Display Type</label>
+                        <select name="display-type">
+                            <option value="1">Title only</option>
+                            <option value="2">Excerpt</option>
+                            <option value="3">Excerpt w/ thumbnail</option>
+                            <!--<option value="4">Full post</option>-->
+                        </select>
+                    </div>
+                    <div class="row">
+                        <label for="limit">Results limit</label>
+                        <select name="limit">
+                            <option value="">None</option>
+                            <option value="10">10</option>
+                            <option value="5">5</option>
+                            <option value="3">3</option>
+                            <option value="1">1</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <input type="submit" title="Submit" value="Submit" />
+                    </div>
+                    
+                </form>
+            
+            </div>
+        </section>
+        
+        <section>
+        <h2>Post Results</h2>
+        <div id="preview_panel"></div>
+        </section>
+		
+    </div>
+    
+<script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
+
+<!--
+<?php
+
+/**
+ * @return bool
+ */
+function hasNewPosts() {
+
+	$obj = new Api();
+	$domain = $obj->domain;
+	$version = $obj->version;
+
+	try {
+
+		// There has to be two checks
+		// One, if there are any new posts at all
+		// Two, if there are any new posts that match the saved query
+		$json = file_get_contents($domain . $version . 'posts/?orderby=date&per_page=1');
+
+		$latest_post = json_decode($json, true);
+	}
+	catch (Exception $e)
+	{
+		echo 'Exception caught: ' . $e->getMessage() . "\n";
+	}
+
+	//echo '<h3>Post ID: ' . $json[0]['id'] . '</h3>';
+	//echo '<h3>Post Date: ' . $json[0]['date'] . '</h3>';
+
+	// Hard coded, but needs to be pulled from transients
+	$saved_date = strtotime('2016-05-20T00:00:00');
+
+	// Latest posts date
+	$post_date = strtotime($latest_post[0]['date']);
+
+	if($saved_date > $post_date) {
+		return true;
+	}
+
+	return false;
+}
+
+function getFeaturedImage($id = 0, $size = 'thumbnail') {
+
+	// Get environment variables
+	$obj 		= new Api();
+	$domain 	= $obj->domain;
+	$version 	= $obj->version;
+	
+	$attachment	=
+	$source 	=
+	$height 	=
+	$width 		= '';
+
+	try {
+
+		$json = file_get_contents($domain . $version . 'media/?include=' . $id);
+
+		$image = json_decode($json, true);
+	}
+	catch (Exception $e)
+	{
+		echo 'Exception caught: ' . $e->getMessage() . "\n";
+	}
+
+	// Echo or return?
+	//echo '<img src="' . $image[0]['media_details']['sizes']['thumbnail']['source_url'] . '" />';
+
+	$node = $image[0]['media_details']['sizes'][$size];
+
+	$src 	= $node['source_url'];
+	$height = $node['height'];
+	$width 	= $node['width'];
+
+	$attachment = '<img src="' . $src . '" width="' . $width . '" height="' . $height . '" />';
+
+	return $attachment;
+}
+
+function showPosts($id = 0) {
+
+	// Start timer
+	$time_start = microtime(true);
+
+	// Get environment variables
+	$obj 			= new Api();
+	$domain 		= $obj->domain;
+	$version 		= $obj->version;
+
+	$attachment 	=
+	$posts_string 	=
+	$featured_media = '';
+
+	$attachment_size = 'medium';
+
+	try {
+
+		//$json = file_get_contents($domain . $version . 'posts/?filter[category_name]=hardware&status=publish');
+		$json = file_get_contents($domain . $version . 'posts/?filter[cat]=' . $id . '&status=publish');
+
+		$posts = json_decode($json, true);
+	}
+	catch (Exception $e)
+	{
+		echo 'Exception caught: ' . $e->getMessage() . "\n";
+		return;
+	}
+
+	echo '<p>There are ' . count($posts) . ' posts that match your query.</p>';
+
+	$posts_string .= '<section class="syndicated_content">';
+
+	// Because the json can be empty
+	if (count($posts) > 0) {
+
+		foreach ($posts as $post) {
+
+			$featured_media = $post['featured_media'];
+
+			if ($featured_media > 0){
+				$attachment = getFeaturedImage($featured_media,$attachment_size);
+				$posts_string .= $attachment;
+			}
+
+			$posts_string .= '<h3>' . $post['title']['rendered'] . '</h3>';
+			$posts_string .= $post['excerpt']['rendered'];
+
+		}
+	}  else {
+		$posts_string .= 'There is no data to display';
+	}
+
+	$posts_string .= '</section>';
+
+	// Endtimer
+	$time_end = microtime(true);
+
+	//dividing with 60 will give the execution time in minutes other wise seconds
+	$execution_time = (($time_end - $time_start)/60)/60;
+
+	//execution time of the script
+	$posts_string .= 'Total execution time : ' . round((microtime(true) - $time_start),4) . ' seconds.';
+
+	echo $posts_string;
+}
+
+function buildCategories() {
+
+	// How can we avoid building this list each time?
+
+	// Get environment variables
+	$obj = new Api();
+	$domain = $obj->domain;
+	$version = $obj->version;
+
+	try {
+
+        $json = file_get_contents($domain . $version . 'categories/?per_page=50&hide_empty=1');
+
+		$categories = json_decode($json, true);
+	}
+	catch (Exception $e)
+	{
+		echo 'Exception caught: ' . $e->getMessage() . "\n";
+	}
+
+	echo '<p>How many categories: ' . count($categories) . '</p>';
+
+    // Debug
+	// echo $categories[0]['id'];
+
+	$select = '<select><option value="">-- Select One --</option>';
+
+	foreach ($categories as $cat) {
+
+		$select .= '<option value="' . $cat['id'] . '">' . $cat['name'] . ' (' . $cat['count'] . ')' .  '</option>';
+
+	}
+
+	$select .= '</select>';
+
+	echo $select;
+
+
+	/*$jsonIterator = new RecursiveIteratorIterator(
+		new RecursiveArrayIterator(json_decode($categories, TRUE)),
+		RecursiveIteratorIterator::SELF_FIRST);
+
+	foreach ($jsonIterator as $key[0] => $val) {
+		if(is_array($val)) {
+			echo "$key:\n";
+		} else {
+			echo "$key => $val\n" . '<br />';
+		}
+	}*/
+
+}
+
+//var_dump($json);
+
+/*
+$jsonIterator = new RecursiveIteratorIterator(
+    new RecursiveArrayIterator(json_decode($file, TRUE)),
+    RecursiveIteratorIterator::SELF_FIRST);
+
+foreach ($jsonIterator as $key => $val) {
+    if(is_array($val)) {
+        echo "$key:\n";
+    } else {
+        echo "$key => $val\n" . '<br />';
+    }
+}
+*/
+?>
+
+-->
+
+<!--
+Always pull the category name and ID to populate the options UI.
+
+We want to get the date of the single, latest post that matches
+the categories, and compare it to the stored date value.
+
+If newer
+    - Pull the configured number of categorized posts using the API.
+    - Store those posts with a timestamp and unique ID into the data store.
+    - Delete the old posts
+
+If older, or does not exist
+    - pull the content from the data store that matches the ID you set.
+
+Sample Queries
+	http://technicalwhining.com/wp-json/wp/v2/media/?include=182
+
+    http://technicalwhining.com/wp-json/wp/v2/categories
+    http://technicalwhining.com/wp-json/wp/v2/categories/?per_page=50&hide_empty=1
+
+    http://technicalwhining.com/wp-json/wp/v2/posts
+    http://technicalwhining.com/wp-json/wp/v2/posts//?filter[category_name]=flash
+    http://technicalwhining.com/wp-json/wp/v2/posts/?categories=[20,21]
+    http://technicalwhining.com/wp-json/wp/v2/posts//?filter[year]=2016&filter[author]=1
+    http://technicalwhining.com/wp-json/wp/v2/posts//?orderby=date&per_page=1
+
+
+-->
+
